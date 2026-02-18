@@ -1,24 +1,36 @@
 import logging
 import os
-import asyncio
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, JobQueue
-
-# ... (Previous imports and setup remain)
+from engine.gemini_brain import GeminiAnalyzer
 
 # Load env variables
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TRADING_SYMBOL = os.getenv("TRADING_SYMBOL", "BTC/USDT")
 
 # ALLOWED USERS CONFIG
 allowed_env = os.getenv("ALLOWED_USER_IDS", "")
 ALLOWED_IDS = [int(id.strip()) for id in allowed_env.split(",") if id.strip().isdigit()]
 
+# Logging setup
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
+# Initialize Gemini Brain
+try:
+    brain = GeminiAnalyzer()
+except Exception as e:
+    logging.error(f"Failed to initialize Gemini Brain: {e}")
+    brain = None
+
 async def is_authorized(update: Update) -> bool:
     user_id = update.effective_user.id
     if not ALLOWED_IDS:
-        return True # If no IDs set, allow everyone (or change to False for strict default)
+        return True 
     
     if user_id not in ALLOWED_IDS:
         print(f"⚠️ Unauthorized access attempt from: {user_id} ({update.effective_user.first_name})")
@@ -29,10 +41,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update):
         return
         
-    symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
     keyboard = [
-        [InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}")],
-        [InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {symbol}", callback_data=f"deep_{symbol}")],
+        [InlineKeyboardButton(f"📡 Tahlil: {TRADING_SYMBOL}", callback_data=f"analyze_{TRADING_SYMBOL}")],
+        [InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {TRADING_SYMBOL}", callback_data=f"deep_{TRADING_SYMBOL}")],
         [InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -51,16 +62,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
-    # Check auth in callback too
     if not await is_authorized(update):
         await query.answer("❌ Ruxsat yo'q!", show_alert=True)
         return
 
-    await query.answer() # Acknowledge interaction
+    await query.answer() 
     
     data = query.data
     
-    # Route based on callback data
     if data.startswith("analyze_"):
         symbol = data.split("_")[1]
         await execute_analyze(update, context, symbol)
@@ -72,20 +81,47 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "monitor_toggle":
         await monitor(update, context)
 
-# ... (execute_analyze and execute_deep_dive remain same) ...
+async def execute_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+    chat_id = update.effective_chat.id
+    if not brain:
+        await context.bot.send_message(chat_id=chat_id, text="❌ Tizim Xatosi: Miyya faol emas.")
+        return
+
+    await context.bot.send_message(chat_id=chat_id, text=f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
+    
+    try:
+        # Await the async analysis
+        report = await brain.analyze_symbol(symbol)
+        await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML') 
+    except Exception as e:
+        await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Xatolik: {e}")
+
+async def execute_deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+    chat_id = update.effective_chat.id
+    if not brain:
+        await context.bot.send_message(chat_id=chat_id, text="❌ Tizim Xatosi: Miyya faol emas.")
+        return
+
+    await context.bot.send_message(chat_id=chat_id, text=f"🕵️‍♂️ <b>{symbol} bo'yicha Chuqur Tahlil Boshlandi</b>...\nDark Pool va Iceberg orderlar tekshirilmoqda...", parse_mode='HTML')
+    
+    try:
+        report = await brain.analyze_symbol(symbol)
+        await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML')
+    except Exception as e:
+        await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Xatolik: {e}")
 
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update): return
     args = context.args
-    symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
+    symbol = args[0] if args else TRADING_SYMBOL
     await execute_analyze(update, context, symbol)
 
 async def deep_dive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update): return
     args = context.args
-    symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
+    symbol = args[0] if args else TRADING_SYMBOL
     await execute_deep_dive(update, context, symbol)
-    
+
 async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update): return
     
@@ -100,32 +136,26 @@ async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.job_queue.run_repeating(monitor_callback, interval=300, first=10, chat_id=chat_id, name=str(chat_id))
         await update.message.reply_text("✅ Monitor Rejimi Yoqildi. Har 5 daqiqada skanerlanadi...")
 
-# ... (monitor_callback and main block remain same) ...
-
 async def monitor_callback(context: ContextTypes.DEFAULT_TYPE):
-    symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
+    symbol = TRADING_SYMBOL
     chat_id = context.job.chat_id
     
-    # In a real monitor, we might only send message if a signal is found.
-    # For "Aether-Quant", we check imbalance.
     try:
-        # We need a way to check *without* generating full text if we want to be quiet 
-        # unless there is a signal.
-        # But for now, let's just generate a short check.
-        # Or better: use the tools directly to check imbalance?
-        # Accessing brain's tools directly:
         if not brain:
              return
-
+        
+        # Tools are sync, this is fine to run quick check
+        # But if we wanted to be fully async we could wrap it.
+        # Since get_technical_analysis is just HTTP requests + math, 
+        # it might block slightly but likely acceptable for now. 
+        # Ideally we'd make get_technical_analysis async too, but let's fix criticals first.
         technicals = brain.get_technical_analysis(symbol)
         
         if "error" in technicals:
-            return # Silent fail on error
+            return 
             
         ratio = technicals.get("volume_imbalance_ratio", 1.0)
-        ofi = technicals.get("order_flow_imbalance", 0.0)
         
-        # Signal Logic
         msg = ""
         if ratio > 3.0:
             msg = f"🚨 <b>SELL WALL DETECTED</b> on {symbol}!\nImbalance Ratio: {ratio:.2f}"
@@ -153,4 +183,3 @@ if __name__ == '__main__':
     
     print("Bot is running...")
     application.run_polling()
-
