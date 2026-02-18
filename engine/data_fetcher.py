@@ -7,16 +7,24 @@ class MarketConnector:
     def __init__(self, exchange_id: str = 'binance'):
         config = {
             'enableRateLimit': True,
+            'options': {
+                'defaultType': 'spot', # Force Spot to avoid 'fapi' (Futures) 451 errors
+            }
         }
         
         # FIX: Force override of the Public API endpoint to bypass AWS geo-blocks
         if exchange_id == 'binance':
             config['urls'] = {
                 'api': {
-                    'public': 'https://data-api.binance.vision/api/v3',
-                    'private': 'https://api.binance.com/api/v3',
+                    'public': 'https://data-api.binance.vision/api', # ccxt adds /v3 internally for most endpoints
                 }
             }
+            # Note: For data-api, we might need /api/v3 in the base if ccxt doesn't append it for specific calls.
+            # However, looking at ccxt source, it usually appends version.
+            # The previous 404 might have been due to a specific endpoint behavior.
+            # Let's try explicit /v3 base if reliable, OR trust the spot enforcement.
+            # Reverting to the one that worked for other users:
+            config['urls']['api']['public'] = 'https://data-api.binance.vision/api/v3'
             
         self.exchange = getattr(ccxt, exchange_id)(config)
         # self.exchange.load_markets() # can be slow, call only if needed
