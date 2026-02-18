@@ -5,7 +5,16 @@ import time
 
 class MarketConnector:
     def __init__(self, exchange_id: str = 'binance'):
-        self.exchange = getattr(ccxt, exchange_id)({'enableRateLimit': True})
+        config = {
+            'enableRateLimit': True,
+            # 'options': {'defaultType': 'spot'} 
+        }
+        
+        # FIX: Use data.binance.com to bypass AWS geo-restrictions for public data
+        if exchange_id == 'binance':
+            config['hostname'] = 'data.binance.com'
+            
+        self.exchange = getattr(ccxt, exchange_id)(config)
         # self.exchange.load_markets() # can be slow, call only if needed
 
     def get_price(self, symbol: str) -> float:
