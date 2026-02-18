@@ -7,6 +7,10 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Callb
 
 # ... (Previous imports and setup remain)
 
+# Load env variables
+load_dotenv()
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
     keyboard = [
