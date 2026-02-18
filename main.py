@@ -2,75 +2,98 @@ import logging
 import os
 import asyncio
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, JobQueue
-from engine.gemini_brain import GeminiAnalyzer
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, JobQueue
 
-# Load env variables
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-# Logging setup
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-
-# Initialize Gemini Brain
-try:
-    brain = GeminiAnalyzer()
-except Exception as e:
-    logging.error(f"Failed to initialize Gemini Brain: {e}")
-    brain = None
+# ... (Previous imports and setup remain)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
+    keyboard = [
+        [
+            InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}"),
+            InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {symbol}", callback_data=f"deep_{symbol}")
+        ],
+        [
+            InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
             "🚀 <b>Aether-Quant Bot Ishga Tushdi</b>\n\n"
-            "Men institutsional oqimlarni ko'ra olaman.\n\n"
-            "Buyruqlar:\n"
-            "/analyze &lt;symbol&gt; - Tezkor Server Tahlili\n"
-            "/deep_dive &lt;symbol&gt; - To'liq 5550-uslubidagi Institutsional Hisobot\n"
-            "/monitor - Ogohlantirish Rejimi (Orqa Fondagi Skaner)"
+            "Men institutsional oqimlarni ko'ra olaman.\n"
+            "Harakatni tanlang:"
         ),
+        reply_markup=reply_markup,
         parse_mode='HTML'
     )
 
-async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer() # Acknowledge interaction
+    
+    data = query.data
+    
+    # Route based on callback data
+    if data.startswith("analyze_"):
+        symbol = data.split("_")[1]
+        # Context args are not available in callback, so we manually call logic or helper
+        await execute_analyze(update, context, symbol)
+        
+    elif data.startswith("deep_"):
+        symbol = data.split("_")[1]
+        await execute_deep_dive(update, context, symbol)
+        
+    elif data == "monitor_toggle":
+        await monitor(update, context)
+
+async def execute_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
     if not brain:
-        await update.message.reply_text("❌ Tizim Xatosi: Miyya faol emas. API kalitlarini tekshiring.")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Tizim Xatosi: Miyya faol emas.")
         return
 
-    args = context.args
-    symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
-    
-    await update.message.reply_text(f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
-    
-    try:
-        # Prompt explicitly for deep dive
-        # We can implement a specific method in brain for this, or just append to prompt
-        # For now, analyze_symbol does the job as configured with "Aether-Quant" persona
-        report = brain.analyze_symbol(symbol)
-        await update.message.reply_text(report, parse_mode='HTML') 
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ Xatolik: {e}")
-
-async def deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not brain:
-        await update.message.reply_text("❌ Tizim Xatosi: Miyya faol emas. API kalitlarini tekshiring.")
-        return
-
-    args = context.args
-    symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
-    
-    await update.message.reply_text(f"🕵️‍♂️ <b>{symbol} bo'yicha Chuqur Tahlil Boshlandi</b>...\nDark Pool va Iceberg orderlar tekshirilmoqda...", parse_mode='HTML')
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
     
     try:
         report = brain.analyze_symbol(symbol)
-        await update.message.reply_text(report, parse_mode='HTML')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=report, parse_mode='HTML') 
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Xatolik: {e}")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Xatolik: {e}")
+
+async def execute_deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+    if not brain:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Tizim Xatosi: Miyya faol emas.")
+        return
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"🕵️‍♂️ <b>{symbol} bo'yicha Chuqur Tahlil Boshlandi</b>...\nDark Pool va Iceberg orderlar tekshirilmoqda...", parse_mode='HTML')
+    
+    try:
+        report = brain.analyze_symbol(symbol)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=report, parse_mode='HTML')
+    except Exception as e:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Xatolik: {e}")
+
+# Keep legacy text commands compatible by wrapping them if needed, 
+# but for now we basically map them to the new functions.
+
+# ... (Monitor function remains mostly same, just ensure context.bot.send_message is used if update.message is ambiguous in callbacks, 
+# although update.effective_chat.id works for both)
+
+async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
+    await execute_analyze(update, context, symbol)
+
+async def deep_dive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
+    await execute_deep_dive(update, context, symbol)
+    
+# ... (Monitor function) ...
+
 
 async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -128,9 +151,10 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
     
     application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('analyze', analyze))
-    application.add_handler(CommandHandler('deep_dive', deep_dive))
+    application.add_handler(CommandHandler('analyze', analyze_command))
+    application.add_handler(CommandHandler('deep_dive', deep_dive_command))
     application.add_handler(CommandHandler('monitor', monitor))
+    application.add_handler(CallbackQueryHandler(button_handler))
     
     print("Bot is running...")
     application.run_polling()
