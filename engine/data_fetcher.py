@@ -5,7 +5,10 @@ import time
 
 class MarketConnector:
     def __init__(self):
+        self.session = requests.Session()
         self.base_url = "https://data-api.binance.vision/api/v3"
+        # Note: This base URL is specific to Crypto/Binance.
+        # For Forex, we would need a different provider later.
         self.headers = {
             'User-Agent': 'Mozilla/5.0'
         }
