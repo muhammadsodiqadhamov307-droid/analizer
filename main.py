@@ -52,20 +52,7 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # We can implement a specific method in brain for this, or just append to prompt
         # For now, analyze_symbol does the job as configured with "Aether-Quant" persona
         report = brain.analyze_symbol(symbol)
-        # Brain output might have markdown. Gemini tends to use *.
-        # We might need to keep it as Markdown or convert? 
-        # Safest is to try Markdown but if it fails... Gemini output is unpredictable.
-        # Let's try sending as plain text or standard MarkdownV2 if we can sanitize.
-        # For now, let's stick to default (which is usually None -> Plain Text) for the report itself? 
-        # Or parse_mode='Markdown' but we risk errors.
-        # Let's strip parse_mode for the report to be safe, or use Markdown and risk it?
-        # Aether-Quant prompt says "Formatting: Use... headers..." which implies Markdown.
-        # Let's try to just send it without parse_mode argument (defaults to None, raw text)
-        # Check if we can just allow the basic markdown. 
-        # If I change start command to HTML, I should probably keep report as is or test.
-        # The report comes from Gemini. 
-        # Let's remove parse_mode for the dynamic report to avoid crashes on underscores.
-        await update.message.reply_text(report) 
+        await update.message.reply_text(report, parse_mode='HTML') 
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error: {e}")
 
@@ -81,7 +68,7 @@ async def deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         report = brain.analyze_symbol(symbol)
-        await update.message.reply_text(report)
+        await update.message.reply_text(report, parse_mode='HTML')
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error: {e}")
 
