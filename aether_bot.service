@@ -1,0 +1,14 @@
+[Unit]
+Description=Aether-Quant Telegram Bot
+After=network.target
+
+[Service]
+# Change 'ubuntu' to your username if different
+User=ubuntu
+WorkingDirectory=/home/ubuntu/analizer
+ExecStart=/home/ubuntu/analizer/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

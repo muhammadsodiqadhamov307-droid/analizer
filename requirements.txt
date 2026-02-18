@@ -1,0 +1,6 @@
+python-telegram-bot
+google-generativeai
+ccxt
+pandas
+numpy
+python-dotenv
