@@ -7,12 +7,16 @@ class MarketConnector:
     def __init__(self, exchange_id: str = 'binance'):
         config = {
             'enableRateLimit': True,
-            # 'options': {'defaultType': 'spot'} 
         }
         
-        # FIX: Use data.binance.com to bypass AWS geo-restrictions for public data
+        # FIX: Force override of the Public API endpoint to bypass AWS geo-blocks
         if exchange_id == 'binance':
-            config['hostname'] = 'data.binance.com'
+            config['urls'] = {
+                'api': {
+                    'public': 'https://data-api.binance.vision/api',
+                    'private': 'https://api.binance.com/api',
+                }
+            }
             
         self.exchange = getattr(ccxt, exchange_id)(config)
         # self.exchange.load_markets() # can be slow, call only if needed
