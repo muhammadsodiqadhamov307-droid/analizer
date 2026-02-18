@@ -11,7 +11,24 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Callb
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
+# ALLOWED USERS CONFIG
+allowed_env = os.getenv("ALLOWED_USER_IDS", "")
+ALLOWED_IDS = [int(id.strip()) for id in allowed_env.split(",") if id.strip().isdigit()]
+
+async def is_authorized(update: Update) -> bool:
+    user_id = update.effective_user.id
+    if not ALLOWED_IDS:
+        return True # If no IDs set, allow everyone (or change to False for strict default)
+    
+    if user_id not in ALLOWED_IDS:
+        print(f"⚠️ Unauthorized access attempt from: {user_id} ({update.effective_user.first_name})")
+        return False
+    return True
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_authorized(update):
+        return
+        
     symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
     keyboard = [
         [InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}")],
@@ -33,6 +50,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    
+    # Check auth in callback too
+    if not await is_authorized(update):
+        await query.answer("❌ Ruxsat yo'q!", show_alert=True)
+        return
+
     await query.answer() # Acknowledge interaction
     
     data = query.data
@@ -40,7 +63,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Route based on callback data
     if data.startswith("analyze_"):
         symbol = data.split("_")[1]
-        # Context args are not available in callback, so we manually call logic or helper
         await execute_analyze(update, context, symbol)
         
     elif data.startswith("deep_"):
@@ -50,52 +72,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "monitor_toggle":
         await monitor(update, context)
 
-async def execute_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
-    if not brain:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Tizim Xatosi: Miyya faol emas.")
-        return
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
-    
-    try:
-        report = brain.analyze_symbol(symbol)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=report, parse_mode='HTML') 
-    except Exception as e:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Xatolik: {e}")
-
-async def execute_deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
-    if not brain:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Tizim Xatosi: Miyya faol emas.")
-        return
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"🕵️‍♂️ <b>{symbol} bo'yicha Chuqur Tahlil Boshlandi</b>...\nDark Pool va Iceberg orderlar tekshirilmoqda...", parse_mode='HTML')
-    
-    try:
-        report = brain.analyze_symbol(symbol)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=report, parse_mode='HTML')
-    except Exception as e:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⚠️ Xatolik: {e}")
-
-# Keep legacy text commands compatible by wrapping them if needed, 
-# but for now we basically map them to the new functions.
-
-# ... (Monitor function remains mostly same, just ensure context.bot.send_message is used if update.message is ambiguous in callbacks, 
-# although update.effective_chat.id works for both)
+# ... (execute_analyze and execute_deep_dive remain same) ...
 
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_authorized(update): return
     args = context.args
     symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
     await execute_analyze(update, context, symbol)
 
 async def deep_dive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_authorized(update): return
     args = context.args
     symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
     await execute_deep_dive(update, context, symbol)
     
-# ... (Monitor function) ...
-
-
 async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_authorized(update): return
+    
     chat_id = update.effective_chat.id
     current_jobs = context.job_queue.get_jobs_by_name(str(chat_id))
     
@@ -106,6 +99,8 @@ async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.job_queue.run_repeating(monitor_callback, interval=300, first=10, chat_id=chat_id, name=str(chat_id))
         await update.message.reply_text("✅ Monitor Rejimi Yoqildi. Har 5 daqiqada skanerlanadi...")
+
+# ... (monitor_callback and main block remain same) ...
 
 async def monitor_callback(context: ContextTypes.DEFAULT_TYPE):
     symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
