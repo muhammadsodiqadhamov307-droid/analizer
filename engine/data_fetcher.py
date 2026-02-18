@@ -13,8 +13,8 @@ class MarketConnector:
         if exchange_id == 'binance':
             config['urls'] = {
                 'api': {
-                    'public': 'https://data-api.binance.vision/api',
-                    'private': 'https://api.binance.com/api',
+                    'public': 'https://data-api.binance.vision/api/v3',
+                    'private': 'https://api.binance.com/api/v3',
                 }
             }
             
