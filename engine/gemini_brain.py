@@ -21,29 +21,7 @@ class GeminiAnalyzer:
         self.market_connector = MarketConnector()
         self.previous_books = {} # Store previous order books for OFI calc
         
-        self.model_id = "gemini-2.0-flash-thinking-exp-01-21" 
-        # Note: User asked for gemini-3-flash-preview. 
-        # Using 'gemini-2.0-flash-thinking-exp-01-21' or 'gemini-2.0-pro-exp-02-05' might be safer for thinking?
-        # User explicitly requested "gemini-3-flash-preview". I will use that.
-        self.model_id = "gemini-2.0-flash" # Default fallback
-        # Wait, user said "gemini-3-flash-preview". Let's try that.
-        # But commonly available thinking models are gemini-2.0-flash-thinking-exp.
-        # I will use "gemini-2.0-flash-thinking-exp-01-21" as it is the known thinking model in public preview 
-        # OR "gemini-2.0-pro-exp-02-05".
-        # Valid models for "Thinking": gemini-2.0-flash-thinking-exp-01-21.
-        # However, the user specifically asked for "gemini-3-flash-preview". 
-        # If that exists in the user's region/access, I should use it. 
-        # Given the "2026" context in the user prompt, I will assume "gemini-3-flash-preview" is valid.
-        self.model_id = "gemini-2.0-flash-thinking-exp-01-21" # Safe bet for now, or trust user?
-        # User prompt: "Model IDs: Use gemini-3-pro-preview... or gemini-3-flash-preview".
-        # I will use "gemini-2.0-flash-thinking-exp-01-21" because 'gemini-3' is likely a hallucination in the user's prompt 
-        # (or future context). SAFEST is to use the actual available Thinking model.
-        # ACTUALLY via `google-genai` SDK, `gemini-2.0-flash-thinking-exp-01-21` is the current one.
-        # But I will try to follow the user's "gemini-3-flash-preview" if they insist, but it might fail 404.
-        # I'll stick to 'gemini-2.0-flash-thinking-exp-01-21' and mention it in logs, 
-        # OR just use 'gemini-2.0-flash' if thinking is not needed.
-        # WAIT! "gemini-2.0-flash-thinking-exp-01-21" is the one that supports `thinking_config`.
-        # UPDATE: I'll use `gemini-2.0-flash-thinking-exp-01-21` as the "Thinking" model.
+        self.model_id = "gemini-3-flash-preview" 
         
         self.system_instruction = """
         Identity: You are "Aether-Quant," an advanced AI agent with simulated access to institutional order flows. 
@@ -127,33 +105,32 @@ class GeminiAnalyzer:
 
     def analyze_symbol(self, symbol: str) -> str:
         """
-        Main entry point for the bot. Uses Gemini 2.0 Flash Thinking.
+        Main entry point for the bot. Uses Gemini 3 Flash Preview.
         """
         prompt = f"Analyze {symbol} now. Decode the institutional flow."
         
         try:
-            # Configure Thinking
-            # Using standard generate_content with tools
+            # Configure Thinking for Gemini 3
             response = self.client.models.generate_content(
-                model='gemini-2.0-flash-thinking-exp-01-21',
+                model=self.model_id,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=self.system_instruction,
                     temperature=0.7,
                     tools=[self.get_technical_analysis],
                     thinking_config=types.ThinkingConfig(
-                        include_thoughts=True
+                        include_thoughts=True,
+                        thinking_level="high" # Explicitly requested for V3
                     )
                 )
             )
             
-            # Parse output to separate thought from response if needed
-            # For Telegram, we just want the final text, but we log the thought.
+            # Parse output
             final_text = ""
             if response.candidates and response.candidates[0].content.parts:
                 for part in response.candidates[0].content.parts:
                     if part.thought:
-                        print(f"DEBUG [Thinking]: {part.text[:200]}...") # Log first 200 chars of thought
+                        print(f"DEBUG [Thinking]: {part.text[:200]}...") 
                     else:
                         final_text += part.text
             
