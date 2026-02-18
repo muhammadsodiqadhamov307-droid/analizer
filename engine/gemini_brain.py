@@ -44,7 +44,7 @@ class GeminiAnalyzer:
         """
         
         self.model = genai.GenerativeModel(
-            model_name='gemini-2.0-flash', # Updated to gemini-2.0-flash as requested
+            model_name='gemini-2.5-flash', # Updated to gemini-2.5-flash as requested
             system_instruction=self.system_instruction,
             tools=self.tools,
             generation_config={"temperature": 0.8}
