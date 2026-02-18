@@ -53,6 +53,7 @@ class GeminiAnalyzer:
         <b>Reja:</b>
         • <i>Likvidlik Manbalari:</i> <b>{Buy/Sell} Walllar</b> aniqlandi.
         • <b>Xulosa:</b> {Short summary}
+        • <b>Taklif:</b> {ANIQ BUYRUQ BERILISHI SHART: BUY / SELL / WAIT}
         """
 
     def get_technical_analysis(self, symbol: str):
