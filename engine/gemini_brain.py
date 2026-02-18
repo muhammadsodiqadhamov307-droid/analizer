@@ -2,6 +2,7 @@ import os
 import google.generativeai as genai
 from google.generativeai.types import FunctionDeclaration, Tool
 from dotenv import load_dotenv
+import pandas as pd
 from engine.data_fetcher import MarketConnector
 from utils.math_tools import calculate_vwap, calculate_rsi, calculate_imbalance_ratio, calculate_ofi
 
