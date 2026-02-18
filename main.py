@@ -37,25 +37,35 @@ async def is_authorized(update: Update) -> bool:
         return False
     return True
 
-def get_main_menu_keyboard(symbol: str):
+# ... (Previous code remains)
+
+def get_asset_menu_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🪙 BTC/USDT (Crypto)", callback_data="select_BTC/USDT")],
+        [InlineKeyboardButton("🥇 XAU/USD (Oltin)", callback_data="select_XAU/USD")],
+        # [InlineKeyboardButton("💱 EUR/USD (Forex)", callback_data="select_EUR/USD")], # Future expansion
+        [InlineKeyboardButton("🔔 Monitor Sozlamalari", callback_data="monitor_toggle")]
+    ])
+
+def get_action_menu_keyboard(symbol: str):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}")],
         [InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {symbol}", callback_data=f"deep_{symbol}")],
-        [InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")]
+        [InlineKeyboardButton("🔙 Bosh Menyuga Qaytish", callback_data="back_to_main")]
     ])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update):
         return
         
-    reply_markup = get_main_menu_keyboard(TRADING_SYMBOL)
+    reply_markup = get_asset_menu_keyboard()
     
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
-            "🚀 <b>Aether-Quant Bot Ishga Tushdi</b>\n\n"
-            "Men institutsional oqimlarni ko'ra olaman.\n"
-            "Harakatni tanlang:"
+            "🚀 <b>Aether-Quant Bot: Asset Tanlash</b>\n\n"
+            "Qaysi bozorni tahlil qilmoqchisiz?\n"
+            "Men institutsional oqimlarni ko'ra olaman."
         ),
         reply_markup=reply_markup,
         parse_mode='HTML'
@@ -71,8 +81,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer() 
     
     data = query.data
+    chat_id = update.effective_chat.id
     
-    if data.startswith("analyze_"):
+    # LEVEL 1: Main Menu Selection
+    if data.startswith("select_"):
+        symbol = data.split("_")[1]
+        # Show Action Menu for this symbol
+        reply_markup = get_action_menu_keyboard(symbol)
+        await query.edit_message_text(
+            text=f"✅ <b>Tanlandi: {symbol}</b>\n\nQanday tahlil kerak?",
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+        
+    elif data == "back_to_main":
+        reply_markup = get_asset_menu_keyboard()
+        await query.edit_message_text(
+            text="🚀 <b>Aether-Quant Bot: Asset Tanlash</b>\n\nQaysi bozorni tahlil qilmoqchisiz?",
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+
+    # LEVEL 2: Actions
+    elif data.startswith("analyze_"):
         symbol = data.split("_")[1]
         await execute_analyze(update, context, symbol)
         
@@ -85,21 +116,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def execute_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
     chat_id = update.effective_chat.id
+    msg = await context.bot.send_message(chat_id=chat_id, text=f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
+    
     if not brain:
         await context.bot.send_message(chat_id=chat_id, text="❌ Tizim Xatosi: Miyya faol emas.")
         return
 
-    await context.bot.send_message(chat_id=chat_id, text=f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
-    
     try:
         report = await brain.analyze_symbol(symbol)
         await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML')
         
-        # Show menu back
+        # Show Action Menu back for the SAME symbol (for convenience)
+        # OR show Main Menu. Let's show Action Menu to allow Deep Dive easily.
         await context.bot.send_message(
             chat_id=chat_id, 
             text="🔄 <b>Keyingi harakat?</b>", 
-            reply_markup=get_main_menu_keyboard(symbol),
+            reply_markup=get_action_menu_keyboard(symbol),
             parse_mode='HTML'
         )
     except Exception as e:
@@ -107,38 +139,39 @@ async def execute_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE, sy
 
 async def execute_deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
     chat_id = update.effective_chat.id
-    if not brain:
-        await context.bot.send_message(chat_id=chat_id, text="❌ Tizim Xatosi: Miyya faol emas.")
-        return
-
     await context.bot.send_message(chat_id=chat_id, text=f"🕵️‍♂️ <b>{symbol} bo'yicha Chuqur Tahlil Boshlandi</b>...\nDark Pool va Iceberg orderlar tekshirilmoqda...", parse_mode='HTML')
     
+    if not brain:
+         await context.bot.send_message(chat_id=chat_id, text="❌ Tizim Xatosi: Miyya faol emas.")
+         return
+
     try:
         report = await brain.analyze_symbol(symbol)
         await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML')
         
-        # Show menu back
+        # Show Action Menu back
         await context.bot.send_message(
             chat_id=chat_id, 
             text="🔄 <b>Keyingi harakat?</b>", 
-            reply_markup=get_main_menu_keyboard(symbol),
+            reply_markup=get_action_menu_keyboard(symbol),
             parse_mode='HTML'
         )
     except Exception as e:
         await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Xatolik: {e}")
 
+# ... (Rest of commands remain, though less useful now) ...
 async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update): return
     args = context.args
-    symbol = args[0] if args else TRADING_SYMBOL
+    symbol = args[0] if args else "BTC/USDT"
     await execute_analyze(update, context, symbol)
 
 async def deep_dive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update): return
     args = context.args
-    symbol = args[0] if args else TRADING_SYMBOL
+    symbol = args[0] if args else "BTC/USDT"
     await execute_deep_dive(update, context, symbol)
-
+    
 async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update): return
     
@@ -148,10 +181,12 @@ async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if current_jobs:
         for job in current_jobs:
             job.schedule_removal()
-        await update.message.reply_text("🛑 Monitor Rejimi O'chirildi.")
+        await context.bot.send_message(chat_id=chat_id, text="🛑 Monitor Rejimi O'chirildi.", reply_markup=get_asset_menu_keyboard())
     else:
         context.job_queue.run_repeating(monitor_callback, interval=300, first=10, chat_id=chat_id, name=str(chat_id))
-        await update.message.reply_text("✅ Monitor Rejimi Yoqildi. Har 5 daqiqada skanerlanadi...")
+        await context.bot.send_message(chat_id=chat_id, text="✅ Monitor Rejimi Yoqildi. Har 5 daqiqada skanerlanadi...", reply_markup=get_asset_menu_keyboard())
+
+# ... (monitor_callback and main) ...
 
 async def monitor_callback(context: ContextTypes.DEFAULT_TYPE):
     symbol = TRADING_SYMBOL
