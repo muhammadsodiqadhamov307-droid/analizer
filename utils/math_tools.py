@@ -86,3 +86,21 @@ def calculate_ofi(current_book: Dict, previous_book: Dict) -> float:
     
     return delta_bid - delta_ask
 
+def calculate_dxy_correlation(gold_prices: List[float], dxy_prices: List[float]) -> float:
+    """
+    Calculates the Pearson correlation between Gold and DXY.
+    -1.0 means perfect inverse (Healthy Gold move).
+    +1.0 means moving together (Institutional Trap/Danger).
+    """
+    if not gold_prices or not dxy_prices or len(gold_prices) != len(dxy_prices):
+        return 0.0
+        
+    try:
+        series_gold = pd.Series(gold_prices)
+        series_dxy = pd.Series(dxy_prices)
+        correlation = series_gold.corr(series_dxy)
+        return round(correlation, 3) if not pd.isna(correlation) else 0.0
+    except Exception as e:
+        print(f"Correlation Error: {e}")
+        return 0.0
+
