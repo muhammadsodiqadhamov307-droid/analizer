@@ -27,19 +27,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
-            "🚀 **Aether-Quant Bot Online**\n\n"
+            "🚀 <b>Aether-Quant Bot Online</b>\n\n"
             "I see what the institutions are doing.\n\n"
             "Commands:\n"
-            "/analyze <symbol> - Quick Server Decode\n"
-            "/deep_dive <symbol> - Full 5550-style Institutional Report\n"
+            "/analyze &lt;symbol&gt; - Quick Server Decode\n"
+            "/deep_dive &lt;symbol&gt; - Full 5550-style Institutional Report\n"
             "/monitor - Toggle Alert Mode (Background Scan)"
         ),
-        parse_mode='Markdown'
+        parse_mode='HTML'
     )
 
 async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not brain:
-        await update.message.reply_text("❌ System Error: Brain not active.")
+        await update.message.reply_text("❌ System Error: Brain not active. Check API Keys.")
         return
 
     args = context.args
@@ -48,28 +48,38 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🔍 Scanning Institutional Flow for {symbol}...")
     
     try:
-        # For quick analyze, maybe we just get the technicals or a short summary?
-        # User requested: "/analyze: Fetches last 1 hour of data and generates a 'server decoded' report"
-        # We can re-use the same brain function but maybe modify prompt slightly or just use the same.
+        # Prompt explicitly for deep dive
+        # We can implement a specific method in brain for this, or just append to prompt
+        # For now, analyze_symbol does the job as configured with "Aether-Quant" persona
         report = brain.analyze_symbol(symbol)
-        await update.message.reply_text(report)
+        # Brain output might have markdown. Gemini tends to use *.
+        # We might need to keep it as Markdown or convert? 
+        # Safest is to try Markdown but if it fails... Gemini output is unpredictable.
+        # Let's try sending as plain text or standard MarkdownV2 if we can sanitize.
+        # For now, let's stick to default (which is usually None -> Plain Text) for the report itself? 
+        # Or parse_mode='Markdown' but we risk errors.
+        # Let's strip parse_mode for the report to be safe, or use Markdown and risk it?
+        # Aether-Quant prompt says "Formatting: Use... headers..." which implies Markdown.
+        # Let's try to just send it without parse_mode argument (defaults to None, raw text)
+        # Check if we can just allow the basic markdown. 
+        # If I change start command to HTML, I should probably keep report as is or test.
+        # The report comes from Gemini. 
+        # Let's remove parse_mode for the dynamic report to avoid crashes on underscores.
+        await update.message.reply_text(report) 
     except Exception as e:
         await update.message.reply_text(f"⚠️ Error: {e}")
 
 async def deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not brain:
-        await update.message.reply_text("❌ System Error: Brain not active.")
+        await update.message.reply_text("❌ System Error: Brain not active. Check API Keys.")
         return
 
     args = context.args
     symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
     
-    await update.message.reply_text(f"🕵️‍♂️ **Initiating Deep Dive for {symbol}**...\nChecking Dark Pools & Iceberg Orders...")
+    await update.message.reply_text(f"🕵️‍♂️ <b>Initiating Deep Dive for {symbol}</b>...\nChecking Dark Pools & Iceberg Orders...", parse_mode='HTML')
     
     try:
-        # Prompt explicitly for deep dive
-        # We can implement a specific method in brain for this, or just append to prompt
-        # For now, analyze_symbol does the job as configured with "Aether-Quant" persona
         report = brain.analyze_symbol(symbol)
         await update.message.reply_text(report)
     except Exception as e:
@@ -99,6 +109,9 @@ async def monitor_callback(context: ContextTypes.DEFAULT_TYPE):
         # But for now, let's just generate a short check.
         # Or better: use the tools directly to check imbalance?
         # Accessing brain's tools directly:
+        if not brain:
+             return
+
         technicals = brain.get_technical_analysis(symbol)
         
         if "error" in technicals:
@@ -110,12 +123,12 @@ async def monitor_callback(context: ContextTypes.DEFAULT_TYPE):
         # Signal Logic
         msg = ""
         if ratio > 3.0:
-            msg = f"🚨 **SELL WALL DETECTED** on {symbol}!\nImbalance Ratio: {ratio:.2f}"
+            msg = f"🚨 <b>SELL WALL DETECTED</b> on {symbol}!\nImbalance Ratio: {ratio:.2f}"
         elif ratio < 0.33:
-            msg = f"🚀 **BUY WALL DETECTED** on {symbol}!\nImbalance Ratio: {ratio:.2f}"
+            msg = f"🚀 <b>BUY WALL DETECTED</b> on {symbol}!\nImbalance Ratio: {ratio:.2f}"
             
         if msg:
-            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode='Markdown')
+            await context.bot.send_message(chat_id=chat_id, text=msg, parse_mode='HTML')
             
     except Exception as e:
         logging.error(f"Monitor error: {e}")
