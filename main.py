@@ -42,7 +42,7 @@ async def is_authorized(update: Update) -> bool:
 def get_asset_menu_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🪙 BTC/USDT (Crypto)", callback_data="select_BTC/USDT")],
-        [InlineKeyboardButton("🥇 XAU/USD (Oltin)", callback_data="select_XAU/USD")],
+        [InlineKeyboardButton("🥇 XAU/USDT (Oltin)", callback_data="select_XAU/USDT")],
         # [InlineKeyboardButton("💱 EUR/USD (Forex)", callback_data="select_EUR/USD")], # Future expansion
         [InlineKeyboardButton("🔔 Monitor Sozlamalari", callback_data="monitor_toggle")]
     ])

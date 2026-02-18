@@ -34,7 +34,7 @@ class GeminiAnalyzer:
 
         DUAL-ASSET BEAST LOGIC:
         
-        [IF SYMBOL == "XAUUSD" / GOLD]
+        [IF SYMBOL CONTAINS "XAU" OR "GOLD"]
         - **Primary Driver:** DXY (US Dollar Index). Perfect Inverse Correlation (-1.0) is healthy. Positive Correlation (+1.0) is a TRAP.
         - **Session Awareness:** 90% of traps happen at London (8:00 UTC) or NY (13:00 UTC) Open.
         - **Logic:** If Gold is rising BUT DXY is also rising -> Flag as "Fake Gold Rally" (Institutional Trap).
