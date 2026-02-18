@@ -5,27 +5,33 @@ import time
 
 class MarketConnector:
     def __init__(self, exchange_id: str = 'binance'):
+        # FIX: Aggressive Spot-Only Mode for AWS Bypass
         config = {
             'enableRateLimit': True,
             'options': {
-                'defaultType': 'spot', # Force Spot to avoid 'fapi' (Futures) 451 errors
+                'defaultType': 'spot', 
+                'adjustForTimeDifference': True,
+                'warnOnFetchOpenOrdersWithoutSymbol': False,
             }
         }
         
-        # FIX: Force override of the Public API endpoint to bypass AWS geo-blocks
         if exchange_id == 'binance':
+            # FORCE override of ALL endpoints to Spot (data-api)
+            # This ensures that even if ccxt tries to use fapi, it will be redirected to spot (or fail differently/safely)
             config['urls'] = {
+                'logo': 'https://user-images.githubusercontent.com/1294454/29604020-d5483cdc-87ee-11e7-94c7-d1a8d9169293.jpg',
                 'api': {
-                    'public': 'https://data-api.binance.vision/api', # ccxt adds /v3 internally for most endpoints
-                }
+                    'public': 'https://data-api.binance.vision/api/v3',
+                    'private': 'https://api.binance.com/api/v3',
+                    # Redirecting futures to spot to prevent 451 (it will error on logic but bypass the geo-block 451)
+                    'fapiPublic': 'https://data-api.binance.vision/api/v3', 
+                    'fapiPrivate': 'https://api.binance.com/api/v3',
+                },
+                'www': 'https://www.binance.com',
+                'doc': 'https://binance-docs.github.io/apidocs/spot/en',
             }
-            # Note: For data-api, we might need /api/v3 in the base if ccxt doesn't append it for specific calls.
-            # However, looking at ccxt source, it usually appends version.
-            # The previous 404 might have been due to a specific endpoint behavior.
-            # Let's try explicit /v3 base if reliable, OR trust the spot enforcement.
-            # Reverting to the one that worked for other users:
-            config['urls']['api']['public'] = 'https://data-api.binance.vision/api/v3'
             
+        print(f"DEBUG: Initializing {exchange_id} with config: {config}")
         self.exchange = getattr(ccxt, exchange_id)(config)
         # self.exchange.load_markets() # can be slow, call only if needed
 
