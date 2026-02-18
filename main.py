@@ -37,16 +37,18 @@ async def is_authorized(update: Update) -> bool:
         return False
     return True
 
+def get_main_menu_keyboard(symbol: str):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}")],
+        [InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {symbol}", callback_data=f"deep_{symbol}")],
+        [InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")]
+    ])
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_authorized(update):
         return
         
-    keyboard = [
-        [InlineKeyboardButton(f"📡 Tahlil: {TRADING_SYMBOL}", callback_data=f"analyze_{TRADING_SYMBOL}")],
-        [InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {TRADING_SYMBOL}", callback_data=f"deep_{TRADING_SYMBOL}")],
-        [InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = get_main_menu_keyboard(TRADING_SYMBOL)
     
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -90,9 +92,16 @@ async def execute_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE, sy
     await context.bot.send_message(chat_id=chat_id, text=f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
     
     try:
-        # Await the async analysis
         report = await brain.analyze_symbol(symbol)
-        await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML') 
+        await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML')
+        
+        # Show menu back
+        await context.bot.send_message(
+            chat_id=chat_id, 
+            text="🔄 <b>Keyingi harakat?</b>", 
+            reply_markup=get_main_menu_keyboard(symbol),
+            parse_mode='HTML'
+        )
     except Exception as e:
         await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Xatolik: {e}")
 
@@ -107,6 +116,14 @@ async def execute_deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     try:
         report = await brain.analyze_symbol(symbol)
         await context.bot.send_message(chat_id=chat_id, text=report, parse_mode='HTML')
+        
+        # Show menu back
+        await context.bot.send_message(
+            chat_id=chat_id, 
+            text="🔄 <b>Keyingi harakat?</b>", 
+            reply_markup=get_main_menu_keyboard(symbol),
+            parse_mode='HTML'
+        )
     except Exception as e:
         await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Xatolik: {e}")
 
