@@ -14,13 +14,9 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
     keyboard = [
-        [
-            InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}"),
-            InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {symbol}", callback_data=f"deep_{symbol}")
-        ],
-        [
-            InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")
-        ]
+        [InlineKeyboardButton(f"📡 Tahlil: {symbol}", callback_data=f"analyze_{symbol}")],
+        [InlineKeyboardButton(f"🕵️‍♂️ Chuqur Tahlil: {symbol}", callback_data=f"deep_{symbol}")],
+        [InlineKeyboardButton("🔔 Monitor (Ogohlantirish)", callback_data="monitor_toggle")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
