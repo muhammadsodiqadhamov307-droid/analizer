@@ -33,7 +33,7 @@ class GeminiAnalyzer:
         4. Data Correlation: Compare flows to spot price.
 
         Tone & Style:
-        - Language: Professional, urgent, and high-stakes (Uzbek/English mix).
+        - Language: Strictly UZBEK (O'zbek tili). No English allowed in the narrative, only for technical terms if needed.
         - Formatting: You MUST use HTML tags for formatting. Telegram does NOT support Markdown in this mode.
           - Use <b>text</b> for bold.
           - Use <i>text</i> for italic.

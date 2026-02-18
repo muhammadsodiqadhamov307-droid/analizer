@@ -27,25 +27,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=(
-            "🚀 <b>Aether-Quant Bot Online</b>\n\n"
-            "I see what the institutions are doing.\n\n"
-            "Commands:\n"
-            "/analyze &lt;symbol&gt; - Quick Server Decode\n"
-            "/deep_dive &lt;symbol&gt; - Full 5550-style Institutional Report\n"
-            "/monitor - Toggle Alert Mode (Background Scan)"
+            "🚀 <b>Aether-Quant Bot Ishga Tushdi</b>\n\n"
+            "Men institutsional oqimlarni ko'ra olaman.\n\n"
+            "Buyruqlar:\n"
+            "/analyze &lt;symbol&gt; - Tezkor Server Tahlili\n"
+            "/deep_dive &lt;symbol&gt; - To'liq 5550-uslubidagi Institutsional Hisobot\n"
+            "/monitor - Ogohlantirish Rejimi (Orqa Fondagi Skaner)"
         ),
         parse_mode='HTML'
     )
 
 async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not brain:
-        await update.message.reply_text("❌ System Error: Brain not active. Check API Keys.")
+        await update.message.reply_text("❌ Tizim Xatosi: Miyya faol emas. API kalitlarini tekshiring.")
         return
 
     args = context.args
     symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
     
-    await update.message.reply_text(f"🔍 Scanning Institutional Flow for {symbol}...")
+    await update.message.reply_text(f"🔍 {symbol} uchun Institutsional Oqimlar Tekshirilmoqda...", parse_mode='HTML')
     
     try:
         # Prompt explicitly for deep dive
@@ -54,23 +54,23 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
         report = brain.analyze_symbol(symbol)
         await update.message.reply_text(report, parse_mode='HTML') 
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Error: {e}")
+        await update.message.reply_text(f"⚠️ Xatolik: {e}")
 
 async def deep_dive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not brain:
-        await update.message.reply_text("❌ System Error: Brain not active. Check API Keys.")
+        await update.message.reply_text("❌ Tizim Xatosi: Miyya faol emas. API kalitlarini tekshiring.")
         return
 
     args = context.args
     symbol = args[0] if args else os.getenv("TRADING_SYMBOL", "BTC/USDT")
     
-    await update.message.reply_text(f"🕵️‍♂️ <b>Initiating Deep Dive for {symbol}</b>...\nChecking Dark Pools & Iceberg Orders...", parse_mode='HTML')
+    await update.message.reply_text(f"🕵️‍♂️ <b>{symbol} bo'yicha Chuqur Tahlil Boshlandi</b>...\nDark Pool va Iceberg orderlar tekshirilmoqda...", parse_mode='HTML')
     
     try:
         report = brain.analyze_symbol(symbol)
         await update.message.reply_text(report, parse_mode='HTML')
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Error: {e}")
+        await update.message.reply_text(f"⚠️ Xatolik: {e}")
 
 async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -79,10 +79,10 @@ async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if current_jobs:
         for job in current_jobs:
             job.schedule_removal()
-        await update.message.reply_text("🛑 Monitor Mode Deactivated.")
+        await update.message.reply_text("🛑 Monitor Rejimi O'chirildi.")
     else:
         context.job_queue.run_repeating(monitor_callback, interval=300, first=10, chat_id=chat_id, name=str(chat_id))
-        await update.message.reply_text("✅ Monitor Mode Activated. Scanning every 5 minutes...")
+        await update.message.reply_text("✅ Monitor Rejimi Yoqildi. Har 5 daqiqada skanerlanadi...")
 
 async def monitor_callback(context: ContextTypes.DEFAULT_TYPE):
     symbol = os.getenv("TRADING_SYMBOL", "BTC/USDT")
