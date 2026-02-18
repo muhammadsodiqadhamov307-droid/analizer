@@ -14,6 +14,15 @@ class MarketConnector:
         }
         print(f"DEBUG: Initialized MarketConnector with Direct HTTP to {self.base_url}")
 
+    def get_market_context(self, symbol):
+        """
+        Determines if the symbol is Crypto or Forex and returns the analytical context.
+        """
+        if "/" in symbol and ("EUR" in symbol or "USD" in symbol or "JPY" in symbol or "GBP" in symbol) and "USDT" not in symbol: 
+            return "Forex Mode: Prioritize Session Time (London/NY) & Tick Velocity. Look for Stop Hunts around News."
+        else: 
+            return "Crypto Mode: Prioritize Open Interest, Funding Rates, and On-Chain Whale Movements."
+
     def _get(self, endpoint: str, params: Dict = None):
         try:
             url = f"{self.base_url}/{endpoint}"
